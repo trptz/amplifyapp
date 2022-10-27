@@ -1,30 +1,22 @@
-// import { withAuthenticator } from '@aws-amplify/ui-react';
-// import './App.css';
-// import logo from './logo.svg';
-//
-// function App() {
-//   return (
-//     <div className="App">
-//       <header>
-//         <img src={logo} className="App-logo" alt="logo" />
-//         <h1>We now have Auth!</h1>
-//       </header>
-//       {/*<AmplifySignOut />*/}
-//     </div>
-//   );
-// }
-//
-// export default withAuthenticator(App);
-
-import { graphqlOperation, GraphQLResult } from '@aws-amplify/api';
+import { GraphQLResult } from '@aws-amplify/api';
 import { withAuthenticator } from '@aws-amplify/ui-react';
-import { API } from 'aws-amplify';
+import { API, graphqlOperation } from 'aws-amplify';
 import { useEffect, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { CreateNoteInput, ListNotesQuery } from './API';
+import Observable from 'zen-observable-ts';
+import { CreateNoteInput, ListNotesQuery, Note } from './API';
 import './App.css';
 import { createNote as createNoteMutation, deleteNote as deleteNoteMutation } from './graphql/mutations';
 import { listNotes } from './graphql/queries';
+import { onCreateNote } from './graphql/subscriptions';
+
+type OnCreateNoteSubscriptionData = {
+  onCreateNote?: Note | null;
+};
+
+type OnCreateNoteSubscriptionEvent = {
+  value: { data: OnCreateNoteSubscriptionData };
+};
 
 const initialFormState: CreateNoteInput = { id: '', name: '', description: '' };
 
@@ -32,8 +24,26 @@ function App() {
   const [notes, setNotes] = useState<CreateNoteInput[]>([]);
   const [formData, setFormData] = useState<CreateNoteInput>(initialFormState);
 
+  const onCreateSubscribe = () => {
+    const subscription = (
+      API.graphql(graphqlOperation(onCreateNote)) as Observable<OnCreateNoteSubscriptionEvent>
+    ).subscribe({
+      next: ({ value }) => {
+        const { onCreateNote } = value.data;
+        if (onCreateNote) {
+          const note = { id: onCreateNote.id, name: onCreateNote.name, description: onCreateNote.description };
+          setNotes((prev) => [...prev, note]);
+        }
+      },
+    });
+    return subscription;
+  };
+
   useEffect(() => {
     fetchNotes();
+
+    const onCreateSubscription = onCreateSubscribe();
+    return () => onCreateSubscription.unsubscribe();
   }, []);
 
   async function fetchNotes() {
@@ -49,7 +59,6 @@ function App() {
 
     const newNote = { ...formData, id: uuidv4() };
     await API.graphql({ query: createNoteMutation, variables: { input: newNote } });
-    setNotes([...notes, newNote]);
     setFormData(newNote);
   }
 
@@ -82,7 +91,6 @@ function App() {
           </div>
         ))}
       </div>
-      {/*<AmplifySignOut />*/}
     </div>
   );
 }

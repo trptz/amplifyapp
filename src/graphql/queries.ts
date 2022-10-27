@@ -14,7 +14,11 @@ export const getNote = /* GraphQL */ `
   }
 `;
 export const listNotes = /* GraphQL */ `
-  query ListNotes($filter: ModelNoteFilterInput, $limit: Int, $nextToken: String) {
+  query ListNotes(
+    $filter: ModelNoteFilterInput
+    $limit: Int
+    $nextToken: String
+  ) {
     listNotes(filter: $filter, limit: $limit, nextToken: $nextToken) {
       items {
         id

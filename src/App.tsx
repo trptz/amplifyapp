@@ -1,5 +1,6 @@
 import { GraphQLResult } from '@aws-amplify/api';
 import { withAuthenticator } from '@aws-amplify/ui-react';
+import { ChatContainer, MainContainer, Message, MessageInput, MessageList } from '@chatscope/chat-ui-kit-react';
 import { API, graphqlOperation } from 'aws-amplify';
 import { useEffect, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
@@ -9,6 +10,7 @@ import './App.css';
 import { createNote as createNoteMutation, deleteNote as deleteNoteMutation } from './graphql/mutations';
 import { listNotes } from './graphql/queries';
 import { onCreateNote } from './graphql/subscriptions';
+import '@chatscope/chat-ui-kit-styles/dist/default/styles.min.css';
 
 type OnCreateNoteSubscriptionData = {
   onCreateNote?: Note | null;
@@ -33,6 +35,7 @@ function App() {
         if (onCreateNote) {
           const note = { id: onCreateNote.id, name: onCreateNote.name, description: onCreateNote.description };
           setNotes((prev) => [...prev, note]);
+          setFormData(initialFormState);
         }
       },
     });
@@ -59,7 +62,6 @@ function App() {
 
     const newNote = { ...formData, id: uuidv4() };
     await API.graphql({ query: createNoteMutation, variables: { input: newNote } });
-    setFormData(newNote);
   }
 
   async function deleteNote({ id }: CreateNoteInput) {
@@ -68,30 +70,44 @@ function App() {
     await API.graphql({ query: deleteNoteMutation, variables: { input: { id } } });
   }
 
+  const { pathname } = window.location;
+  const myName = pathname.split('/')[1];
+
   return (
-    <div className="App">
-      <h1>My Notes App</h1>
-      <input
-        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-        placeholder="Note name"
-        value={formData.name}
-      />
-      <input
-        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-        placeholder="Note description"
-        value={formData.description!}
-      />
-      <button onClick={createNote}>Create Note</button>
-      <div style={{ marginBottom: 30 }}>
-        {notes.map((note) => (
-          <div key={note.id || note.name}>
-            <h2>{note.name}</h2>
-            <p>{note.description}</p>
-            <button onClick={() => deleteNote(note)}>Delete note</button>
-          </div>
-        ))}
+    <>
+      <h1>Chat App</h1>
+      <div style={{ position: 'relative', height: '500px' }}>
+        <MainContainer>
+          <ChatContainer>
+            <MessageList>
+              {notes.map(({ id, name, description }) => {
+                const isMyMsg = myName === name;
+                const direction = isMyMsg ? 'incoming' : 'outgoing';
+                return (
+                  <Message
+                    key={id}
+                    model={{
+                      message: description || '',
+                      sentTime: 'just now',
+                      sender: name,
+                      direction,
+                      position: 'normal',
+                    }}
+                  />
+                );
+              })}
+            </MessageList>
+            <MessageInput
+              placeholder="こんにちは"
+              onChange={(description) => setFormData({ ...formData, name: myName, description })}
+              value={formData.description!}
+              attachButton={false}
+              onSend={createNote}
+            />
+          </ChatContainer>
+        </MainContainer>
       </div>
-    </div>
+    </>
   );
 }
 

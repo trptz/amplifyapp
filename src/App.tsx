@@ -52,8 +52,10 @@ function App() {
   async function fetchNotes() {
     const apiData = (await API.graphql(graphqlOperation(listNotes))) as GraphQLResult<ListNotesQuery>;
     if (apiData.data?.listNotes?.items) {
-      const notes = apiData.data.listNotes.items as CreateNoteInput[];
-      setNotes(notes);
+      console.log(apiData.data.listNotes);
+      const notes = apiData.data.listNotes.items as Note[];
+      const sortedNotes = notes.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      setNotes(sortedNotes);
     }
   }
 
@@ -62,12 +64,6 @@ function App() {
 
     const newNote = { ...formData, id: uuidv4() };
     await API.graphql({ query: createNoteMutation, variables: { input: newNote } });
-  }
-
-  async function deleteNote({ id }: CreateNoteInput) {
-    const newNotesArray = notes.filter((note) => note.id !== id);
-    setNotes(newNotesArray);
-    await API.graphql({ query: deleteNoteMutation, variables: { input: { id } } });
   }
 
   const { pathname } = window.location;
@@ -80,7 +76,8 @@ function App() {
         <MainContainer>
           <ChatContainer>
             <MessageList>
-              {notes.map(({ id, name, description }) => {
+              {notes.map((note) => {
+                const { id, name, description } = note;
                 const isMyMsg = myName === name;
                 const direction = isMyMsg ? 'incoming' : 'outgoing';
                 return (
